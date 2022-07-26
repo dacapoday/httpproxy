@@ -10,13 +10,13 @@ import (
 	"net/http/httputil"
 )
 
-type HttpProxy httputil.ReverseProxy
+type Proxy httputil.ReverseProxy
 
-func (p *HttpProxy) IsProxyRequest(req *http.Request) bool {
+func (p *Proxy) IsProxyRequest(req *http.Request) bool {
 	return req.URL.IsAbs() || req.Method == http.MethodConnect
 }
 
-func (p *HttpProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodConnect {
 		if p.Director == nil {
 			p.Director = func(req *http.Request) {}
@@ -71,7 +71,7 @@ func copy(to io.Writer, from io.Reader, done <-chan struct{}) {
 	<-done
 }
 
-func (p *HttpProxy) logf(format string, args ...interface{}) {
+func (p *Proxy) logf(format string, args ...interface{}) {
 	if p.ErrorLog != nil {
 		p.ErrorLog.Printf(format, args...)
 	} else {
@@ -79,25 +79,25 @@ func (p *HttpProxy) logf(format string, args ...interface{}) {
 	}
 }
 
-func (p *HttpProxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
+func (p *Proxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
 	p.logf("http: proxy error: %v", err)
 	rw.WriteHeader(http.StatusBadGateway)
 }
 
-func (p *HttpProxy) getErrorHandler() func(http.ResponseWriter, *http.Request, error) {
+func (p *Proxy) getErrorHandler() func(http.ResponseWriter, *http.Request, error) {
 	if p.ErrorHandler != nil {
 		return p.ErrorHandler
 	}
 	return p.defaultErrorHandler
 }
 
-var nilDialer net.Dialer
+var zeroDialer net.Dialer
 
-func (p *HttpProxy) dial(ctx context.Context, network, addr string) (net.Conn, error) {
+func (p *Proxy) dial(ctx context.Context, network, addr string) (net.Conn, error) {
 	if t, ok := p.Transport.(*http.Transport); ok {
 		if t.DialContext != nil {
 			return t.DialContext(ctx, network, addr)
 		}
 	}
-	return nilDialer.DialContext(ctx, network, addr)
+	return zeroDialer.DialContext(ctx, network, addr)
 }
